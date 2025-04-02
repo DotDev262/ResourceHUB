@@ -1,7 +1,15 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:resourcehub/theme/theme_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -9,12 +17,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return DynamicColorBuilder(
+          builder: (lightColorScheme, darkColorScheme) {
+            return MaterialApp(
+              title: 'Flutter Demo',
+              theme: themeProvider.lightTheme(lightColorScheme),
+              darkTheme: themeProvider.darkTheme(darkColorScheme),
+              themeMode: themeProvider.themeMode,
+              home: const MyHomePage(title: 'Flutter Demo Home Page'),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -42,8 +58,19 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-
         title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Provider.of<ThemeProvider>(context).isDarkMode
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
+        ],
       ),
       body: Center(
         child: Column(

@@ -1,9 +1,21 @@
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resourcehub/theme/theme_provider.dart';
+import 'package:dynamic_color/dynamic_color.dart';
+import 'package:resourcehub/auth/signup.dart';
+import 'package:resourcehub/auth/signin.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  await Supabase.initialize(url: supabaseUrl!, anonKey: supabaseAnonKey!);
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
@@ -11,6 +23,8 @@ void main() {
     ),
   );
 }
+
+final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -22,11 +36,17 @@ class MyApp extends StatelessWidget {
         return DynamicColorBuilder(
           builder: (lightColorScheme, darkColorScheme) {
             return MaterialApp(
-              title: 'Flutter Demo',
+              title: 'Resource Hub',
+              debugShowCheckedModeBanner: false,
               theme: themeProvider.lightTheme(lightColorScheme),
               darkTheme: themeProvider.darkTheme(darkColorScheme),
               themeMode: themeProvider.themeMode,
-              home: const MyHomePage(title: 'Flutter Demo Home Page'),
+              home: const SignUpPage(),
+              routes: {
+                '/signup': (context) => const SignUpPage(),
+                '/home': (context) => const TempHomepage(),
+                '/login': (context) => const SignInPage(),
+              },
             );
           },
         );
@@ -35,60 +55,14 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
+class TempHomepage extends StatelessWidget {
+  const TempHomepage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Provider.of<ThemeProvider>(context).isDarkMode
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-            ),
-            onPressed: () {
-              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+      appBar: AppBar(title: const Text('Temporary Homepage')),
+      body: const Center(child: Text('Welcome to the temporary homepage!')),
     );
   }
 }

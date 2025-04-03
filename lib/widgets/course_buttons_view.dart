@@ -17,7 +17,7 @@ class CourseButtonsView extends StatelessWidget {
     textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
   );
 
-  CourseButtonsView({ // Removed const
+  CourseButtonsView({
     super.key,
     required this.courseTitles,
     required this.onCoursePressed,
@@ -30,24 +30,20 @@ class CourseButtonsView extends StatelessWidget {
     _logger.fine(
         'Building CourseButtonsView with ${courseTitles.length} courses');
     if (isGrid) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.3,
-            ),
-            padding: const EdgeInsets.all(16),
-            itemCount: courseTitles.length,
-            itemBuilder: (context, index) {
-              return _buildCourseButton(
-                  context, courseTitles[index], courseIcons[index]);
-            },
-          );
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.3,
+        ),
+        padding: const EdgeInsets.all(16),
+        itemCount: courseTitles.length,
+        itemBuilder: (context, index) {
+          return _buildCourseButton(
+              context, courseTitles[index], courseIcons[index]);
         },
       );
     } else {
@@ -58,7 +54,7 @@ class CourseButtonsView extends StatelessWidget {
         itemCount: courseTitles.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            padding: const EdgeInsets.symmetric(vertical: 8.0), // Adjusted vertical padding
             child: _buildCourseButton(
                 context, courseTitles[index], courseIcons[index]),
           );

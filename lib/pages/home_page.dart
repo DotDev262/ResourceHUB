@@ -17,7 +17,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   final Logger _logger = Logger('UnifiedHomepage');
   String _greeting = "Hello!";
   String? _userName;
-  String? _userRole; // To store the user's role
+  String? _userRole;
 
   @override
   void initState() {
@@ -26,31 +26,30 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   }
 
   Future<void> _loadUserData() async {
-    await _getUserData(); // Fetch both name and role
+    await _getUserData();
   }
 
   Future<void> _getUserData() async {
     final user = supabase.auth.currentUser;
     if (user != null) {
       try {
-        final response = await supabase
-            .from('users') // Replace 'users' with your actual users table name
-            .select('name, role') // Select both name and role
-            .eq('id', user.id)
-            .single();
+        final response =
+            await supabase
+                .from('users')
+                .select('name, role')
+                .eq('id', user.id)
+                .single();
 
-        if (response != null && response is Map<String, dynamic>) {
-          setState(() {
-            _userName = response['name'] as String?;
-            _userRole = response['role'] as String?;
-            _updateGreeting();
-          });
-        } else {
+        setState(() {
+          _userName = response['name'] as String?;
+          _userRole = response['role'] as String?;
           _updateGreeting();
-        }
+        });
       } catch (e) {
-        _logger.severe('Error fetching user data', e);
-        _updateGreeting();
+        _logger.warning('Error fetching user data', e);
+        setState(() {
+          _greeting = "Hello!";
+        });
       }
     } else {
       _updateGreeting();
@@ -58,14 +57,18 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   }
 
   void _updateGreeting() {
-    setState(() {
-      if (_userName?.isNotEmpty == true) {
-        _greeting = "Hello ${_userName!}!";
-      } else {
-        final user = supabase.auth.currentUser;
-        _greeting = "Hello ${user?.email ?? 'User'}!";
-      }
-    });
+    String newGreeting;
+    if (_userName?.isNotEmpty == true) {
+      newGreeting = "Hello ${_userName!}!";
+    } else {
+      final user = supabase.auth.currentUser;
+      newGreeting = "Hello ${user?.email ?? 'User'}!";
+    }
+    if (_greeting != newGreeting) {
+      setState(() {
+        _greeting = newGreeting;
+      });
+    }
   }
 
   Future<void> _showLogoutDialog() async {
@@ -107,9 +110,9 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
       } catch (e) {
         _logger.severe('Error during logout', e);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error signing out')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Error signing out')));
         }
       }
     }
@@ -117,15 +120,18 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
 
   void _onCoursePressed(BuildContext context, String courseTitle) {
     _logger.info('Course pressed: $courseTitle');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pressed: $courseTitle')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Pressed: $courseTitle')));
   }
 
   void _onUploadButtonPressed() {
     _logger.info('Upload button pressed');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Upload functionality will be implemented here.')),
+      const SnackBar(
+        content: Text('Upload functionality will be implemented here.'),
+      ),
     );
-    // Here you would navigate to an upload screen or show a dialog for adding links.
   }
 
   @override
@@ -156,28 +162,12 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (_userRole == 'Faculty') // Conditional button for faculty
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: ElevatedButton.icon(
-                    onPressed: _onUploadButtonPressed,
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text('Upload Links'),
-                  ),
-                ),
+              if (_userRole == 'Faculty')
+                FacultyUploadButton(onPressed: _onUploadButtonPressed),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Courses:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: Icon(_isGrid ? Icons.list : Icons.grid_view),
-                    onPressed: () => setState(() => _isGrid = !_isGrid),
-                  ),
-                ],
+              CoursesHeader(
+                isGrid: _isGrid,
+                onToggleGrid: () => setState(() => _isGrid = !_isGrid),
               ),
               const SizedBox(height: 16),
               CourseButtonsView(
@@ -197,13 +187,56 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
                   Icons.phone_android,
                   Icons.memory,
                 ],
-                onCoursePressed: (courseTitle) => _onCoursePressed(context, courseTitle),
+                onCoursePressed:
+                    (courseTitle) => _onCoursePressed(context, courseTitle),
                 isGrid: _isGrid,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class FacultyUploadButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const FacultyUploadButton({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.upload_file),
+        label: const Text('Upload Links'),
+      ),
+    );
+  }
+}
+
+class CoursesHeader extends StatelessWidget {
+  final bool isGrid;
+  final VoidCallback onToggleGrid;
+
+  const CoursesHeader({super.key, required this.isGrid, required this.onToggleGrid});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Courses:',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        IconButton(
+          icon: Icon(isGrid ? Icons.list : Icons.grid_view),
+          onPressed: onToggleGrid,
+        ),
+      ],
     );
   }
 }

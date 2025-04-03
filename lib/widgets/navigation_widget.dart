@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:resourcehub/pages/homepage.dart'; // Placeholder import
+import 'package:resourcehub/pages/home_page.dart'; // Import your UnifiedHomepage
 // import 'package:resourcehub/pages/previous_year_papers_page.dart'; // Placeholder import
 
 class NavigationWidget extends StatefulWidget {
@@ -12,11 +12,8 @@ class NavigationWidget extends StatefulWidget {
 class _NavigationWidgetState extends State<NavigationWidget> {
   int _selectedIndex = 0;
 
-  // Keep instances of the pages to prevent rebuilding on each tap.
-  // This assumes that the state within these pages is managed correctly
-  // and they can remain in memory without issues.
   final List<Widget> _widgetOptions = <Widget>[
-    const Placeholder(child: Text('Home Page')), // Placeholder for UnifiedHomepage
+    const UnifiedHomepage(), // Use your UnifiedHomepage here
     const Placeholder(child: Text('Previous Year Papers Page')), // Placeholder for PreviousYearPapersPage
   ];
 

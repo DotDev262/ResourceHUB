@@ -6,6 +6,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:resourcehub/auth/signup.dart';
 import 'package:resourcehub/auth/signin.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:resourcehub/widgets/navigation_widget.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,10 +42,10 @@ class MyApp extends StatelessWidget {
               theme: themeProvider.lightTheme(lightColorScheme),
               darkTheme: themeProvider.darkTheme(darkColorScheme),
               themeMode: themeProvider.themeMode,
-              home: const SignInPage(),
+              home: const AuthCheck(), // Use AuthCheck as the home
               routes: {
                 '/signup': (context) => const SignUpPage(),
-                '/home': (context) => const TempHomepage(),
+                '/home': (context) => const NavigationWidget(),
                 '/login': (context) => const SignInPage(),
               },
             );
@@ -55,14 +56,48 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class TempHomepage extends StatelessWidget {
-  const TempHomepage({super.key});
+class AuthCheck extends StatefulWidget {
+  const AuthCheck({super.key});
+
+  @override
+  State<AuthCheck> createState() => _AuthCheckState();
+}
+
+class _AuthCheckState extends State<AuthCheck> {
+  bool _isLoading = true;
+  bool _loggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSession();
+  }
+
+  Future<void> _loadSession() async {
+    setState(() {
+      _isLoading = true;
+    });
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      setState(() {
+        _loggedIn = true;
+      });
+    } else {
+      setState(() {
+        _loggedIn = false;
+      });
+    }
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Temporary Homepage')),
-      body: const Center(child: Text('Welcome to the temporary homepage!')),
-    );
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    } else {
+      return _loggedIn ? const NavigationWidget() : const SignInPage();
+    }
   }
 }

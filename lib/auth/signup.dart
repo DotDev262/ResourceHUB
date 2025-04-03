@@ -72,7 +72,6 @@ class _SignupPageState extends State<SignUpPage> {
     List<String> fetchedYears = await fetchCurriculumYears();
     setState(() {
       _curriculumYears.addAll(fetchedYears); // Updated variable name
-      print('Fetched curriculum years: $_curriculumYears'); // Updated print message
     });
   }
 

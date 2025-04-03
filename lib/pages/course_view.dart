@@ -47,13 +47,10 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         .select('id')
         .eq('course_id', courseId)
         .eq('curriculum_id', curriculumId);
-
-    if (subjectsResponse is! List || subjectsResponse.isEmpty) {
       setState(() {
         _errorMessage = 'No subjects found for this course in the current curriculum.';
       });
-      return;
-    }
+
 
     final List<int> subjectIds =
         subjectsResponse.map((subject) => subject['id'] as int).toList();
@@ -122,10 +119,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                                 const SizedBox(height: 8),
                                 if (file['link'] != null)
                                   ElevatedButton.icon(
-                                    onPressed: () {
-                                      // Implement logic to open the file link (e.g., using url_launcher package)
-                                      print('Opening link: ${file['link']}');
-                                    },
+                                    onPressed: () {},
                                     icon: const Icon(Icons.link),
                                     label: const Text('Open Link'),
                                   )

@@ -60,8 +60,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   }
 
   Future<void> _loadCourses() async {
-    print("User: ${supabase.auth.currentUser}");
-    print("User Role: $_userRole");
     final user = supabase.auth.currentUser;
     if (user != null && _userRole == 'student') {
       try {
@@ -110,9 +108,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
                               course['icon_name'] != null,
                         )
                         .toList();
-                print(
-                  "Loaded Courses: $_courses",
-                ); // IMPORTANT: Check this output in your Flutter console
               });
             }
           }

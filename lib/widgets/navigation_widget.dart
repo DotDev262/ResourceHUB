@@ -31,13 +31,15 @@ class _NavigationWidgetState extends State<NavigationWidget> {
         children: _widgetOptions,
       ),
       bottomNavigationBar: NavigationBar(
-        destinations: const <Widget>[
+        destinations: <Widget>[
           NavigationDestination(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history),
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
             label: 'Previous Year',
           ),
         ],

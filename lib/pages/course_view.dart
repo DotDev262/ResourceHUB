@@ -38,6 +38,13 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         .eq('title', widget.courseTitle)
         .single();
 
+    if (courseResponse == null) {
+      setState(() {
+        _errorMessage = 'Course not found.';
+      });
+      return;
+    }
+
     final courseId = courseResponse['id'] as int;
     final int curriculumId = widget.curriculumId;
 
@@ -47,10 +54,13 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         .select('id')
         .eq('course_id', courseId)
         .eq('curriculum_id', curriculumId);
+
+    if (subjectsResponse == null || subjectsResponse is! List || subjectsResponse.isEmpty) {
       setState(() {
         _errorMessage = 'No subjects found for this course in the current curriculum.';
       });
-
+      return;
+    }
 
     final List<int> subjectIds =
         subjectsResponse.map((subject) => subject['id'] as int).toList();
@@ -67,7 +77,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
 
     final filesResponse = await fileQuery;
 
-    if (filesResponse is List) {
+    if (filesResponse != null && filesResponse is List) {
       setState(() {
         _files = List<Map<String, dynamic>>.from(filesResponse);
       });
@@ -119,7 +129,10 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                                 const SizedBox(height: 8),
                                 if (file['link'] != null)
                                   ElevatedButton.icon(
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      // Implement logic to open the file link (e.g., using url_launcher package)
+                                      print('Opening link: ${file['link']}');
+                                    },
                                     icon: const Icon(Icons.link),
                                     label: const Text('Open Link'),
                                   )

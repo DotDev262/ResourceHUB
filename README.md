@@ -1,4 +1,4 @@
-# resourcehub
+# ResourceHUB
 
 A new Flutter project.
 

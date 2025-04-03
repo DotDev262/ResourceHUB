@@ -55,6 +55,8 @@ class _SignupPageState extends State<SignUpPage> {
   String? _selectedRole;
   String? _selectedDepartment = '';
   String? _guessedAdmissionYear;
+  final List<String> _curriculumYears = [];
+  String? _selectedCurriculumYear;
 
   final List<String> _dept = [];
 
@@ -62,7 +64,16 @@ class _SignupPageState extends State<SignUpPage> {
   void initState() {
     super.initState();
     _emailController.addListener(_debouncedGuessAndSetRole);
-    _loadCurriculaNames(); // Load the department names on initialization
+    _loadCurriculaNames();
+    _loadCurriculumYears();
+  }
+
+   Future<void> _loadCurriculumYears() async {
+    List<String> fetchedYears = await fetchCurriculumYears();
+    setState(() {
+      _curriculumYears.addAll(fetchedYears); // Updated variable name
+      print('Fetched curriculum years: $_curriculumYears'); // Updated print message
+    });
   }
 
   Future<void> _loadCurriculaNames() async {
@@ -130,6 +141,15 @@ class _SignupPageState extends State<SignUpPage> {
     return names;
   }
 
+  Future<List<String>> fetchCurriculumYears() async {
+    final List<dynamic> data =
+        await supabase.from('curricula').select('academic_year');
+    List<String> years =
+        data.map((item) => item['academic_year'].toString()).toList();
+    years.sort();
+    return years;
+  }
+
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -179,6 +199,7 @@ class _SignupPageState extends State<SignUpPage> {
               'role': _selectedRole?.toLowerCase(),
               'department': _selectedDepartment,
               'admission_year': _guessedAdmissionYear,
+              'curriculum_year': _selectedCurriculumYear,
             },
           ]);
 
@@ -221,6 +242,12 @@ class _SignupPageState extends State<SignUpPage> {
   void _onDepartmentChanged(String? value) {
     setState(() {
       _selectedDepartment = value;
+    });
+  }
+
+  void _onCurriculumYearChanged(String? value) { // Renamed function
+    setState(() {
+      _selectedCurriculumYear = value; // Updated variable name
     });
   }
 
@@ -279,6 +306,13 @@ class _SignupPageState extends State<SignUpPage> {
                       departments: _dept,
                       selectedValue: _selectedDepartment,
                       onChanged: _onDepartmentChanged,
+                    ),
+                  const SizedBox(height: 16),
+                  if (_selectedRole == 'Student')
+                    CurriculumYearDropdown( // Updated widget name
+                      curriculumYears: _curriculumYears, // Updated variable name
+                      selectedValue: _selectedCurriculumYear, // Updated variable name
+                      onChanged: _onCurriculumYearChanged, // Updated callback name
                     ),
                   const SizedBox(height: 16),
                   PasswordFormField(controller: _passwordController),
@@ -749,6 +783,56 @@ class DepartmentDropdown extends StatelessWidget {
         if (parentState?._selectedRole == 'Student' &&
             (value == null || value.isEmpty)) {
           return 'Please select your department';
+        }
+        return null;
+      },
+    );
+  }
+}
+
+class CurriculumYearDropdown extends StatelessWidget { // Renamed class
+  final List<String> curriculumYears; // Updated variable name
+  final String? selectedValue;
+  final ValueChanged<String?> onChanged;
+
+  const CurriculumYearDropdown({
+    super.key,
+    required this.curriculumYears, // Updated parameter name
+    required this.selectedValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: 'Curriculum Year', // Updated label text
+        filled: true,
+        fillColor: colors.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
+        prefixIcon: Icon(Icons.calendar_today, color: colors.primary),
+      ),
+      value: selectedValue,
+      items: curriculumYears.map((year) { // Updated variable name
+        return DropdownMenuItem<String>(
+          value: year,
+          child: Text(year),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      validator: (value) {
+        final parentState = context.findAncestorStateOfType<_SignupPageState>();
+        if (parentState?._selectedRole == 'Student' &&
+            (value == null || value.isEmpty)) {
+          return 'Please select your curriculum year'; // Updated validation message
         }
         return null;
       },

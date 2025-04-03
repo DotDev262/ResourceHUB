@@ -4,8 +4,8 @@ import 'package:resourcehub/widgets/navigation_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final supabase = Supabase.instance.client;
-const String studentDomain = '@student.example.com';
-const String facultyDomain = '@faculty.example.com';
+const String studentDomain = '@ch.students.amrita.edu';
+const String facultyDomain = '@ch.amrita.edu';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -214,8 +214,8 @@ class _SignInPageState extends State<SignInPage>
                       if (value == null || value.isEmpty) {
                         return 'Please enter your password';
                       }
-                      if (value.length < 10) {
-                        return 'Password must be at least 10 characters';
+                      if (value.length < 6 ) {
+                        return 'Password must be at least 6 characters';
                       }
                       return null;
                     },

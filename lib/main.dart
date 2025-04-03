@@ -58,6 +58,7 @@ class MyApp extends StatelessWidget {
                 '/signup': (context) => const SignUpPage(),
                 '/home': (context) => const NavigationWidget(),
                 '/login': (context) => const SignInPage(),
+
               },
             );
           },

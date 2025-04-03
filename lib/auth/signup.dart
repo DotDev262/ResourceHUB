@@ -20,6 +20,20 @@ String? guessRoleFromEmail(String email) {
   }
 }
 
+String? guessAdmissionYearFromStudentEmail(String email) {
+  if (email.endsWith(studentDomain)) {
+    final parts = email.split('@');
+    if (parts.isNotEmpty) {
+      final studentIdPart = parts[0];
+      final yearMatch = RegExp(r'cse(\d{2})').firstMatch(studentIdPart);
+      if (yearMatch != null && yearMatch.groupCount >= 1) {
+        return '20${yearMatch.group(1)}';
+      }
+    }
+  }
+  return null;
+}
+
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -40,6 +54,7 @@ class _SignupPageState extends State<SignUpPage> {
 
   String? _selectedRole;
   String? _selectedDepartment;
+  String? _guessedAdmissionYear;
   final List<String> _departments = [
     'Computer Science',
     'Electrical Engineering',
@@ -62,21 +77,28 @@ class _SignupPageState extends State<SignUpPage> {
   }
 
   void _guessAndSetRole() {
-    final guessedRole = guessRoleFromEmail(_emailController.text);
-    if (guessedRole != null && _selectedRole != guessedRole) {
-      setState(() {
-        _selectedRole = guessedRole;
-        if (_selectedRole != 'Student') {
-          _selectedDepartment = null;
-        }
-      });
-    } else if (guessedRole == null && _selectedRole != null) {
-      setState(() {
-        _selectedRole = null;
+  final guessedRole = guessRoleFromEmail(_emailController.text);
+  final guessedYear = guessAdmissionYearFromStudentEmail(_emailController.text);
+  if (guessedRole != null && _selectedRole != guessedRole) {
+    setState(() {
+      _selectedRole = guessedRole;
+      _guessedAdmissionYear = guessedYear;
+      if (_selectedRole != 'Student') {
         _selectedDepartment = null;
-      });
-    }
+      }
+    });
+  } else if (guessedRole == null && _selectedRole != null) {
+    setState(() {
+      _selectedRole = null;
+      _selectedDepartment = null;
+      _guessedAdmissionYear = null;
+    });
+  } else if (guessedRole == 'Student' && _guessedAdmissionYear != guessedYear) {
+    setState(() {
+      _guessedAdmissionYear = guessedYear;
+    });
   }
+}
 
   @override
   void dispose() {
@@ -140,15 +162,16 @@ class _SignupPageState extends State<SignUpPage> {
       if (user != null && mounted) {
         final Session? session = supabase.auth.currentSession;
         if (session != null) {
-          await supabase.from('users').insert([
-            {
-              'id': response.user!.id,
-              'name': _nameController.text,
-              'email': _emailController.text,
-              'role': _selectedRole?.toLowerCase(),
-              'department': _selectedDepartment,
-            },
-          ]);
+         await supabase.from('users').insert([
+          {
+            'id': response.user!.id,
+            'name': _nameController.text,
+            'email': _emailController.text,
+            'role': _selectedRole?.toLowerCase(),
+            'department': _selectedDepartment,
+            'admission_year': _guessedAdmissionYear,
+          },
+        ]);
 
           if (!mounted) return;
           final email = _emailController.text;

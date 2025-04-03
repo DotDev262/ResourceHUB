@@ -86,39 +86,37 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
                   .eq('academic_year', int.tryParse(admissionYear) ?? 0)
                   .single();
 
-          if (curriculumResponse != null) {
-            final curriculumId = curriculumResponse['id'] as int?;
-            if (curriculumId != null) {
-              final subjectsResponse = await supabase
-                  .from('subjects')
-                  .select('courses(title, icon_name)')
-                  .eq('curriculum_id', curriculumId);
+          final curriculumId = curriculumResponse['id'] as int?;
+          if (curriculumId != null) {
+            final subjectsResponse = await supabase
+                .from('subjects')
+                .select('courses(title, icon_name)')
+                .eq('curriculum_id', curriculumId);
 
-              if (subjectsResponse != null) {
-                setState(() {
-                  _courses =
-                      (subjectsResponse as List<dynamic>)
-                          .map(
-                            (subject) => {
-                              'title': subject['courses']['title'] as String?,
-                              'icon_name':
-                                  subject['courses']['icon_name'] as String?,
-                            },
-                          )
-                          .where(
-                            (course) =>
-                                course['title'] != null &&
-                                course['icon_name'] != null,
-                          )
-                          .toList();
-                  print(
-                    "Loaded Courses: $_courses",
-                  ); // IMPORTANT: Check this output in your Flutter console
-                });
-              }
+            if (subjectsResponse != null) {
+              setState(() {
+                _courses =
+                    (subjectsResponse as List<dynamic>)
+                        .map(
+                          (subject) => {
+                            'title': subject['courses']['title'] as String?,
+                            'icon_name':
+                                subject['courses']['icon_name'] as String?,
+                          },
+                        )
+                        .where(
+                          (course) =>
+                              course['title'] != null &&
+                              course['icon_name'] != null,
+                        )
+                        .toList();
+                print(
+                  "Loaded Courses: $_courses",
+                ); // IMPORTANT: Check this output in your Flutter console
+              });
             }
           }
-        }
+                }
       } catch (e) {
         _logger.warning('Error fetching student courses', e);
         if (mounted) {

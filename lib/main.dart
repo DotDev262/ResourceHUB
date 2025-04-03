@@ -9,7 +9,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:resourcehub/widgets/navigation_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:resourcehub/pages/onboarding.dart';
-import 'package:resourcehub/pages/course_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

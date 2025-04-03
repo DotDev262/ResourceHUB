@@ -38,13 +38,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         .eq('title', widget.courseTitle)
         .single();
 
-    if (courseResponse == null) {
-      setState(() {
-        _errorMessage = 'Course not found.';
-      });
-      return;
-    }
-
     final courseId = courseResponse['id'] as int;
     final int curriculumId = widget.curriculumId;
 
@@ -55,7 +48,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         .eq('course_id', courseId)
         .eq('curriculum_id', curriculumId);
 
-    if (subjectsResponse == null || subjectsResponse is! List || subjectsResponse.isEmpty) {
+    if (subjectsResponse is! List || subjectsResponse.isEmpty) {
       setState(() {
         _errorMessage = 'No subjects found for this course in the current curriculum.';
       });
@@ -77,7 +70,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
 
     final filesResponse = await fileQuery;
 
-    if (filesResponse != null && filesResponse is List) {
+    if (filesResponse is List) {
       setState(() {
         _files = List<Map<String, dynamic>>.from(filesResponse);
       });

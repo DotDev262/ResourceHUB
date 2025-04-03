@@ -7,6 +7,8 @@ import 'package:resourcehub/auth/signup.dart';
 import 'package:resourcehub/auth/signin.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:resourcehub/widgets/navigation_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:resourcehub/pages/onboarding.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +19,13 @@ Future<void> main() async {
 
   await Supabase.initialize(url: supabaseUrl!, anonKey: supabaseAnonKey!);
 
+  final prefs = await SharedPreferences.getInstance();
+  final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
-      child: const MyApp(),
+      child: MyApp(hasSeenOnboarding: hasSeenOnboarding),
     ),
   );
 }
@@ -28,7 +33,9 @@ Future<void> main() async {
 final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool hasSeenOnboarding;
+
+  const MyApp({super.key, required this.hasSeenOnboarding});
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +49,7 @@ class MyApp extends StatelessWidget {
               theme: themeProvider.lightTheme(lightColorScheme),
               darkTheme: themeProvider.darkTheme(darkColorScheme),
               themeMode: themeProvider.themeMode,
-              home: const AuthCheck(), // Use AuthCheck as the home
+             home: hasSeenOnboarding ? const AuthCheck() : const OnboardingPage(),
               routes: {
                 '/signup': (context) => const SignUpPage(),
                 '/home': (context) => const NavigationWidget(),

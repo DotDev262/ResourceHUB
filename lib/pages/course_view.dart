@@ -22,6 +22,13 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
+  // For custom searching
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+
+  // For custom sorting
+  String _sortCriteria = 'name';
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +88,8 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       _isLoading = true;
       _errorMessage = null;
       _files.clear();
+      _searchResults.clear(); // Clear search results on reload
+      _searchController.clear(); // Clear search input
     });
 
     try {
@@ -122,6 +131,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
 
       setState(() {
         _files = List<Map<String, dynamic>>.from(filesResponse);
+        _sortFiles(); // Sort the files after loading
       });
     } catch (e) {
       setState(() {
@@ -132,6 +142,33 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         _isLoading = false;
       });
     }
+  }
+
+  void _filterFiles(String query) {
+    final lowerCaseQuery = query.toLowerCase();
+    final results = _files.where((file) {
+      final name = (file['name'] as String? ?? '').toLowerCase();
+      final description = (file['description'] as String? ?? '').toLowerCase();
+      return name.contains(lowerCaseQuery) || description.contains(lowerCaseQuery);
+    }).toList();
+    // Time complexity for the where and toList operation is O(n)
+    setState(() {
+      _searchResults = results;
+    });
+  }
+
+  void _sortFiles() {
+    setState(() {
+      _files.sort((a, b) {
+        final aValue = (a[_sortCriteria] as String? ?? '').toLowerCase();
+        final bValue = (b[_sortCriteria] as String? ?? '').toLowerCase();
+        return aValue.compareTo(bValue);
+      });
+      // Time complexity for the sort is O(n log n)
+      if (_searchController.text.isNotEmpty) {
+        _filterFiles(_searchController.text); // Re-filter after sorting
+      }
+    });
   }
 
   Future<void> _showUploadFileDialog() async {
@@ -219,7 +256,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         }
       ]);
 
-      _loadFilesForCourse(); // Reload files after upload
+      _loadFilesForCourse(); // Reload and sort
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('File uploaded successfully!')),
       );
@@ -233,7 +270,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
   Future<void> _deleteFile(int fileId) async {
     try {
       await supabase.from('files').delete().eq('id', fileId);
-      _loadFilesForCourse(); // Reload files after deletion
+      _loadFilesForCourse(); // Reload and sort
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('File deleted successfully!')),
       );
@@ -279,6 +316,9 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    List<Map<String, dynamic>> displayedFiles =
+        _searchController.text.isNotEmpty ? _searchResults : _files;
+
     return Scaffold(
       appBar: AppBar(
         title: ScaleTransition(
@@ -288,8 +328,53 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
             child: Text(widget.courseTitle),
           ),
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(100.0),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterFiles,
+                  decoration: const InputDecoration(
+                    labelText: 'Search files',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Text('Sort by:'),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _sortCriteria,
+                      items: <String>['name', 'description'].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value.toUpperCase()),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _sortCriteria = newValue;
+                            _sortFiles();
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: _buildBodyContent(),
+      body: _buildBodyContent(displayedFiles),
       floatingActionButton: _userRole == 'faculty'
           ? FloatingActionButton(
               heroTag: "upload_file_fab",
@@ -302,7 +387,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
     );
   }
 
-  Widget _buildBodyContent() {
+  Widget _buildBodyContent(List<Map<String, dynamic>> filesToShow) {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -322,19 +407,21 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       );
     }
 
-    if (_files.isEmpty) {
+    if (filesToShow.isEmpty) {
       return Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: const Text('No files available for this course.'),
+          child: Text(_searchController.text.isNotEmpty
+              ? 'No files found matching your search.'
+              : 'No files available for this course.'),
         ),
       );
     }
 
     return AnimatedList(
-      initialItemCount: _files.length,
+      initialItemCount: filesToShow.length,
       itemBuilder: (context, index, animation) {
-        final file = _files[index];
+        final file = filesToShow[index];
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0, 0.2),
@@ -342,7 +429,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
           ).animate(animation),
           child: FadeTransition(
             opacity: animation,
-            child: _buildFileCardWithDelete(file), // Use the new card builder
+            child: _buildFileCardWithDelete(file),
           ),
         );
       },

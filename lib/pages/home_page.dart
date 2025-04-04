@@ -55,30 +55,29 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
     ).animate(_controller);
   }
 
-   @override
-  void didChangeDependencies() { // Add this entire method
+  @override
+  void didChangeDependencies() {
+    // Add this entire method
     super.didChangeDependencies();
     _updateColorAnimation();
   }
 
-  void _updateColorAnimation() { // Add this entire method
+  void _updateColorAnimation() {
+    // Add this entire method
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     setState(() {
       _colorAnimation = ColorTween(
-        begin: colorScheme.primary.withValues(alpha:0.3),
+        begin: colorScheme.primary.withValues(alpha: 0.3),
         end: colorScheme.primary,
       ).animate(_controller);
     });
   }
-
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-
-  
 
   Future<void> _loadUserDataAndCourses() async {
     await _getUserData();
@@ -114,37 +113,146 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
 
   Future<void> _loadCourses() async {
     final user = supabase.auth.currentUser;
-    if (user != null && _userRole == 'faculty') {
-      try {
-        final subjectsResponse = await supabase
-            .from('subjects')
-            .select('courses(title, icon_name), id') // Include subject ID
-            .eq('faculty_id', user.id);
+    if (user != null) {
+      if (_userRole?.toLowerCase() == 'student') {
+        // Case-insensitive check
+        try {
+          final userData =
+              await supabase
+                  .from('users')
+                  .select('department, admission_year')
+                  .eq('id', user.id)
+                  .single();
+          final department = userData['department'] as String?;
+          final admissionYear = userData['admission_year'] as String?;
 
+          if (department != null && admissionYear != null) {
+            final curriculumResponse =
+                await supabase
+                    .from('curricula')
+                    .select('id')
+                    .eq('name', 'B.Tech $department')
+                    .eq('academic_year', int.tryParse(admissionYear) ?? 0)
+                    .single();
+
+            final curriculumId = curriculumResponse['id'] as int?;
+            if (curriculumId != null) {
+              final subjectsResponse = await supabase
+                  .from('subjects')
+                  .select('course_id')
+                  .eq('curriculum_id', curriculumId);
+
+              List<Map<String, dynamic>> fetchedCourses = [];
+
+              for (var subject in subjectsResponse) {
+                final courseId = subject['course_id'] as int?;
+                if (courseId != null) {
+                  final courseResponse =
+                      await supabase
+                          .from('courses')
+                          .select('title, icon_name')
+                          .eq('id', courseId)
+                          .single();
+
+                  if (courseResponse != null) {
+                    fetchedCourses.add({
+                      'title': courseResponse['title'] as String?,
+                      'icon_name': courseResponse['icon_name'] as String?,
+                    });
+                  }
+                }
+              }
+
+              setState(() {
+                _courses =
+                    fetchedCourses
+                        .where(
+                          (course) =>
+                              course['title'] != null &&
+                              course['icon_name'] != null,
+                        )
+                        .toList();
+              });
+            } else {
+              _logger.warning('Curriculum ID not found for student');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Curriculum ID not found.')),
+                );
+              }
+            }
+          } else {
+            _logger.warning(
+              'Department or Admission Year not found for student',
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Department or Admission Year not found.'),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          _logger.warning('Error fetching student courses', e);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to load student courses.')),
+            );
+          }
+        }
+      } else if (_userRole?.toLowerCase() == 'faculty') {
+        // Case-insensitive check
+        try {
+          final subjectsResponse = await supabase
+              .from('subjects')
+              .select('course_id')
+              .eq('faculty_id', user.id);
+
+          List<Map<String, dynamic>> fetchedCourses = [];
+
+          for (var subject in subjectsResponse) {
+            final courseId = subject['course_id'] as int?;
+            if (courseId != null) {
+              final courseResponse =
+                  await supabase
+                      .from('courses')
+                      .select('title, icon_name')
+                      .eq('id', courseId)
+                      .single();
+
+              if (courseResponse != null) {
+                fetchedCourses.add({
+                  'title': courseResponse['title'] as String?,
+                  'icon_name': courseResponse['icon_name'] as String?,
+                });
+              }
+            }
+          }
+
+          setState(() {
+            _courses =
+                fetchedCourses
+                    .where(
+                      (course) =>
+                          course['title'] != null &&
+                          course['icon_name'] != null,
+                    )
+                    .toList();
+          });
+        } catch (e) {
+          _logger.warning('Error fetching faculty courses', e);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to load faculty courses.')),
+            );
+          }
+        }
+      } else {
         setState(() {
-          _courses =
-              (subjectsResponse as List<dynamic>)
-                  .map(
-                    (subject) => {
-                      'title': subject['courses']['title'] as String?,
-                      'icon_name': subject['courses']['icon_name'] as String?,
-                      'subject_id': subject['id'] as int?, // Store subject ID
-                    },
-                  )
-                  .where(
-                    (course) =>
-                        course['title'] != null && course['icon_name'] != null,
-                  )
-                  .toList();
+          _courses = [];
         });
-      } catch (e) {
-        _logger.warning('Error fetching faculty courses', e);
-        // ... (error handling) ...
       }
-    } else {
-      setState(() {
-        _courses = [];
-      });
     }
   }
 
@@ -209,7 +317,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
       }
     }
   }
-
 
   void _onCoursePressed(BuildContext context, String courseTitle) async {
     _logger.info('Course pressed: $courseTitle');

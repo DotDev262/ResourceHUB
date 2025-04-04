@@ -36,11 +36,32 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
     _searchController.addListener(_applyFiltersAndSort);
   }
 
-  Future<void> _deletePaper(String filename) async {
+ Future<void> _deletePaper(String filename) async {
     try {
       setState(() => _isLoading = true);
+
+      // 1. Get the file path from the 'papers' table
+      final paper = await supabase
+          .from('papers')
+          .select('file_path')
+          .eq('filename', filename)
+          .single();
+
+      if (paper == null) {
+        _showError('Paper not found.');
+        return;
+      }
+
+      final filePath = paper['file_path'] as String;
+
+      // 2. Delete the file from Supabase storage
+      await supabase.storage.from('previous-papers').remove([filePath]);
+
+      // 3. Delete the record from the 'papers' table
       await supabase.from('papers').delete().eq('filename', filename);
+
       await _fetchPapers();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Paper deleted successfully')),
@@ -178,18 +199,48 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
     }
   }
 
+  int _binarySearchPaper(List<Map<String, dynamic>> papers, String query) {
+    int low = 0;
+    int high = papers.length - 1;
+
+    while (low <= high) {
+      int mid = (low + high) ~/ 2;
+      final midFilename = papers[mid]['filename'].toString().toLowerCase();
+
+      if (midFilename == query) {
+        return mid;
+      } else if (midFilename.compareTo(query) < 0) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return -1; // Not found
+  }
+
   void _applyFiltersAndSort() {
     var filtered = _papers;
 
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
-      filtered =
-          filtered.where((paper) {
-            final name = paper['filename'].toString().toLowerCase();
-            final tags = paper['tags'].join(' ').toLowerCase();
-            return name.contains(query) || tags.contains(query);
-          }).toList();
+      // Use binary search if the list is sorted by filename
+      if (_sortOption == 'A-Z') {
+        final index = _binarySearchPaper(filtered, query);
+        if (index != -1) {
+          filtered = [filtered[index]]; // Show only the found paper
+        } else {
+          filtered = []; // Show nothing if not found
+        }
+      } else {
+        // Fallback to linear search for other sort options
+        filtered = filtered.where((paper) {
+          final name = paper['filename'].toString().toLowerCase();
+          final tags = paper['tags'].join(' ').toLowerCase();
+          return name.contains(query) || tags.contains(query);
+        }).toList();
+      }
     }
+
 
     if (_selectedDept != null && _selectedDept!.isNotEmpty) {
       filtered =

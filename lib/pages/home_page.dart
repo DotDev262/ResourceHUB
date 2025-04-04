@@ -3,6 +3,7 @@ import 'package:resourcehub/widgets/course_buttons_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logging/logging.dart';
 import 'course_view.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -54,11 +55,30 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
     ).animate(_controller);
   }
 
+   @override
+  void didChangeDependencies() { // Add this entire method
+    super.didChangeDependencies();
+    _updateColorAnimation();
+  }
+
+  void _updateColorAnimation() { // Add this entire method
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    setState(() {
+      _colorAnimation = ColorTween(
+        begin: colorScheme.primary.withValues(alpha:0.3),
+        end: colorScheme.primary,
+      ).animate(_controller);
+    });
+  }
+
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
+
+  
 
   Future<void> _loadUserDataAndCourses() async {
     await _getUserData();

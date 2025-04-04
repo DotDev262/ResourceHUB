@@ -3,7 +3,6 @@ import 'package:resourcehub/widgets/course_buttons_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logging/logging.dart';
 import 'course_view.dart';
-import 'package:flutter/animation.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -248,7 +247,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
     }
   }
 
-  Future<void> _AddCourseDialog(BuildContext context) async {
+  Future<void> _addCourseDialog(BuildContext context) async {
     final titleController = TextEditingController();
     String? selectedIconName;
     int? selectedSubjectId;
@@ -488,16 +487,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
     }
   }
 
-  void _showCurriculumNotApplicableSnackbar() {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Curriculum information not applicable for your role.'),
-        ),
-      );
-    }
-  }
-
   IconData _getIconData(String? iconName) {
     switch (iconName) {
       case 'code':
@@ -574,7 +563,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                         shadows: [
                           Shadow(
                             blurRadius: 2.0,
-                            color: _colorAnimation.value!.withOpacity(0.4),
+                            color: _colorAnimation.value!.withValues(alpha:0.4),
                             offset: const Offset(1.0, 1.0),
                           ),
                         ],
@@ -625,7 +614,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
           _userRole == 'faculty'
               ? FloatingActionButton.extended(
                 heroTag: null,
-                onPressed: () => _AddCourseDialog(context),
+                onPressed: () => _addCourseDialog(context),
                 icon: const Icon(Icons.add),
                 label: const Text('Add Course'),
               )

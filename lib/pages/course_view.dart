@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:logging/logging.dart'; 
 
 final supabase = Supabase.instance.client;
+final Logger _log = Logger('CourseDetailPage'); 
 
 class CourseDetailPage extends StatefulWidget {
   final String courseTitle;
@@ -47,11 +49,14 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
             .eq('id', user.id)
             .single();
 
-        setState(() {
-          _userRole = response['role'] as String?;
-        });
+        if (mounted) { // Added mounted check
+          setState(() {
+            _userRole = response['role'] as String?;
+          });
+          _log.info('User role fetched: $_userRole');
+        }
       } catch (e) {
-        print('Error fetching user role: $e');
+        _log.severe('Error fetching user role: $e');
       }
     }
   }
@@ -84,13 +89,15 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
   }
 
   Future<void> _loadFilesForCourse() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _files.clear();
-      _searchResults.clear(); // Clear search results on reload
-      _searchController.clear(); // Clear search input
-    });
+    if (mounted) { // Added mounted check
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _files.clear();
+        _searchResults.clear();
+        _searchController.clear();
+      });
+    }
 
     try {
       final courseResponse = await supabase
@@ -109,9 +116,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
           .eq('curriculum_id', curriculumId);
 
       if (subjectsResponse.isEmpty) {
-        setState(() {
-          _errorMessage = 'No subjects found for this course in the current curriculum.';
-        });
+        if (mounted) { // Added mounted check
+          setState(() {
+            _errorMessage = 'No subjects found for this course in the current curriculum.';
+          });
+        }
         return;
       }
 
@@ -123,26 +132,33 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
 
       if (subjectIds.isNotEmpty) {
         fileQuery = fileQuery.or(
-          subjectIds.map((subjectId) => 'subject_id.eq.$subjectId').toList().join(',')
+          subjectIds.map((subjectId) => 'subject_id.eq.$subjectId').toList().join(','),
         );
       }
 
       final filesResponse = await fileQuery;
 
-      setState(() {
-        _files = List<Map<String, dynamic>>.from(filesResponse);
-        _sortFiles(); // Sort the files after loading
-      });
+      if (mounted) { // Added mounted check
+        setState(() {
+          _files = List<Map<String, dynamic>>.from(filesResponse);
+          _sortFiles();
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load files: ${e.toString()}';
-      });
+      if (mounted) { // Added mounted check
+        setState(() {
+          _errorMessage = 'Failed to load files: ${e.toString()}';
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) { // Added mounted check
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
 
   void _filterFiles(String query) {
     final lowerCaseQuery = query.toLowerCase();
@@ -151,25 +167,29 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       final description = (file['description'] as String? ?? '').toLowerCase();
       return name.contains(lowerCaseQuery) || description.contains(lowerCaseQuery);
     }).toList();
-    // Time complexity for the where and toList operation is O(n)
-    setState(() {
-      _searchResults = results;
-    });
+
+    if (mounted) { // Added mounted check
+      setState(() {
+        _searchResults = results;
+      });
+    }
   }
 
   void _sortFiles() {
-    setState(() {
-      _files.sort((a, b) {
-        final aValue = (a[_sortCriteria] as String? ?? '').toLowerCase();
-        final bValue = (b[_sortCriteria] as String? ?? '').toLowerCase();
-        return aValue.compareTo(bValue);
+    if (mounted) { // Added mounted check
+      setState(() {
+        _files.sort((a, b) {
+          final aValue = (a[_sortCriteria] as String? ?? '').toLowerCase();
+          final bValue = (b[_sortCriteria] as String? ?? '').toLowerCase();
+          return aValue.compareTo(bValue);
+        });
+        if (_searchController.text.isNotEmpty) {
+          _filterFiles(_searchController.text);
+        }
       });
-      // Time complexity for the sort is O(n log n)
-      if (_searchController.text.isNotEmpty) {
-        _filterFiles(_searchController.text); // Re-filter after sorting
-      }
-    });
+    }
   }
+
 
   Future<void> _showUploadFileDialog() async {
     final nameController = TextEditingController();
@@ -222,7 +242,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
     );
   }
 
-  Future<void> _uploadFile(String name, String description, String link) async {
+   Future<void> _uploadFile(String name, String description, String link) async {
     try {
       final courseResponse = await supabase
           .from('courses')
@@ -238,9 +258,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
           .eq('curriculum_id', widget.curriculumId);
 
       if (subjectsResponse.isEmpty) {
-        setState(() {
-          _errorMessage = 'No subjects found for this course in the current curriculum.';
-        });
+        if (mounted) { // Added mounted check
+          setState(() {
+            _errorMessage = 'No subjects found for this course in the current curriculum.';
+          });
+        }
         return;
       }
 
@@ -257,13 +279,17 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       ]);
 
       _loadFilesForCourse(); // Reload and sort
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File uploaded successfully!')),
-      );
+      if (mounted) { // Added mounted check
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File uploaded successfully!')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload file: ${e.toString()}')),
-      );
+      if (mounted) { // Added mounted check
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload file: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -271,13 +297,17 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
     try {
       await supabase.from('files').delete().eq('id', fileId);
       _loadFilesForCourse(); // Reload and sort
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File deleted successfully!')),
-      );
+      if (mounted) { // Added mounted check
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File deleted successfully!')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete file: ${e.toString()}')),
-      );
+      if (mounted) { // Added mounted check
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete file: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -494,7 +524,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: Colors.blue.withValues(alpha:0.3),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -511,7 +541,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         ),
         onPressed: () {
           // Implement logic to open the file link
-          print('Opening link: $link');
         },
         child: const Row(
           mainAxisSize: MainAxisSize.min,

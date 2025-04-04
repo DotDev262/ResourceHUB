@@ -12,10 +12,10 @@ class PreviousYearPapers extends StatefulWidget {
   const PreviousYearPapers({super.key});
 
   @override
-  _PreviousYearPapersState createState() => _PreviousYearPapersState();
+  PreviousYearPapersState createState() => PreviousYearPapersState();
 }
 
-class _PreviousYearPapersState extends State<PreviousYearPapers> {
+class PreviousYearPapersState extends State<PreviousYearPapers> {
   final SupabaseClient supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _papers = [];
   List<Map<String, dynamic>> _filteredPapers = [];
@@ -41,13 +41,17 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       setState(() => _isLoading = true);
       await supabase.from('papers').delete().eq('filename', filename);
       await _fetchPapers();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Paper deleted successfully')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Paper deleted successfully')),
+        );
+      }
     } catch (e) {
       _showError('Failed to delete paper: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -76,7 +80,9 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       );
 
       if (result == null || result.files.isEmpty) {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
         return;
       }
 
@@ -87,7 +93,9 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       if (kIsWeb) {
         if (file.bytes == null) {
           _showError('File bytes not available on web');
-          setState(() => _isLoading = false);
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
           return;
         }
         await supabase.storage
@@ -100,7 +108,9 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       } else {
         if (file.path == null) {
           _showError('File path not available');
-          setState(() => _isLoading = false);
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
           return;
         }
         File dartFile = File(file.path!);
@@ -125,9 +135,11 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
 
       await _fetchPapers();
       _clearInputs();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File uploaded successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File uploaded successfully!')),
+        );
+      }
     } catch (e) {
       if (e is StorageException && e.statusCode == '404') {
         _showError(
@@ -137,7 +149,9 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
         _showError('Failed to upload file: $e');
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -148,14 +162,18 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
         _errorMessage = null;
       });
       final response = await supabase.from('papers').select();
-      setState(() {
-        _papers = response;
-        _applyFiltersAndSort();
-      });
+      if (mounted) {
+        setState(() {
+          _papers = response;
+          _applyFiltersAndSort();
+        });
+      }
     } catch (e) {
       _showError('Failed to fetch papers: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -200,14 +218,18 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       filtered.sort((a, b) => b['filename'].compareTo(a['filename']));
     }
 
-    setState(() {
-      _filteredPapers = filtered;
-    });
+    if (mounted) {
+      setState(() {
+        _filteredPapers = filtered;
+      });
+    }
   }
 
   Future<void> _viewPdf(String filePath) async {
     try {
-      setState(() => _isLoading = true);
+      if (mounted) {
+        setState(() => _isLoading = true);
+      }
       final url = supabase.storage
           .from('previous-papers')
           .getPublicUrl(filePath);
@@ -246,15 +268,19 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
     } catch (e) {
       _showError('Failed to view PDF: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _showError(String message) {
-    setState(() => _errorMessage = message);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    if (mounted) {
+      setState(() => _errorMessage = message);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _clearInputs() {
@@ -308,7 +334,6 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
                   ),
                   onPressed: _isLoading ? null : _uploadFile,
                   style: ElevatedButton.styleFrom(
-                    // Use Theme.of(context).colorScheme.secondary for accent color
                     backgroundColor: Theme.of(context).colorScheme.secondary,
                     foregroundColor: Colors.white,
                   ),
@@ -406,8 +431,7 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
                               ),
                               title: Text(paper['filename']),
                               subtitle: Text(
-                                'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}',
-                              ),
+                                  'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}'),
                               onTap: () => _viewPdf(paper['file_path']),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
@@ -434,11 +458,13 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
             title: Text('Clear Filters'),
           ),
           onTap: () {
-            setState(() {
-              _selectedDept = null;
-              _selectedSemester = null;
-              _applyFiltersAndSort();
-            });
+            if (mounted) {
+              setState(() {
+                _selectedDept = null;
+                _selectedSemester = null;
+                _applyFiltersAndSort();
+              });
+            }
           },
         ),
         PopupMenuItem(
@@ -448,10 +474,12 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
           ),
           onTap: () {
             _showTextInputDialog('Department', (value) {
-              setState(() {
-                _selectedDept = value.isNotEmpty ? value : null;
-                _applyFiltersAndSort();
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedDept = value.isNotEmpty ? value : null;
+                  _applyFiltersAndSort();
+                });
+              }
             });
           },
         ),
@@ -462,13 +490,15 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
           ),
           onTap: () {
             _showTextInputDialog('Semester', (value) {
-              setState(() {
-                _selectedSemester =
-                    int.tryParse(value) != null && int.parse(value) > 0
-                        ? int.parse(value)
-                        : null;
-                _applyFiltersAndSort();
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedSemester =
+                      int.tryParse(value) != null && int.parse(value) > 0
+                          ? int.parse(value)
+                          : null;
+                  _applyFiltersAndSort();
+                });
+              }
             }, keyboardType: TextInputType.number);
           },
         ),
@@ -489,10 +519,12 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
                     title: Text(option),
                   ),
                   onTap: () {
-                    setState(() {
-                      _sortOption = option;
-                      _applyFiltersAndSort();
-                    });
+                    if (mounted) {
+                      setState(() {
+                        _sortOption = option;
+                        _applyFiltersAndSort();
+                      });
+                    }
                   },
                 ),
               )
@@ -501,10 +533,10 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
   }
 
   void _showTextInputDialog(
-    String label,
-    Function(String) onSubmit, {
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+      String label,
+      Function(String) onSubmit, {
+        TextInputType keyboardType = TextInputType.text,
+      }) {
     String inputValue = '';
     showDialog(
       context: context,

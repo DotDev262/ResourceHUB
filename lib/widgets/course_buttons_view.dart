@@ -126,10 +126,10 @@ class CourseButtonsView extends StatelessWidget {
           overlayColor: WidgetStateProperty.resolveWith<Color>(
             (states) {
               if (states.contains(WidgetState.pressed)) {
-                return Theme.of(context).colorScheme.primary.withOpacity(0.1);
+                return Theme.of(context).colorScheme.primary.withValues(alpha:0.1);
               }
               if (states.contains(WidgetState.hovered)) {
-                return Theme.of(context).colorScheme.primary.withOpacity(0.05);
+                return Theme.of(context).colorScheme.primary.withValues(alpha:0.05);
               }
               return Colors.transparent;
             },

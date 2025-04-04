@@ -94,65 +94,11 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
 
   Future<void> _loadCourses() async {
     final user = supabase.auth.currentUser;
-    if (user != null && _userRole == 'student') {
-      try {
-        final userData =
-            await supabase
-                .from('users')
-                .select('department, admission_year')
-                .eq('id', user.id)
-                .single();
-        final department = userData['department'] as String?;
-        final admissionYear = userData['admission_year'] as String?;
-
-        if (department != null && admissionYear != null) {
-          final curriculumResponse =
-              await supabase
-                  .from('curricula')
-                  .select('id')
-                  .eq('name', 'B.Tech $department')
-                  .eq('academic_year', int.tryParse(admissionYear) ?? 0)
-                  .single();
-
-          final curriculumId = curriculumResponse['id'] as int?;
-          if (curriculumId != null) {
-            final subjectsResponse = await supabase
-                .from('subjects')
-                .select('courses(title, icon_name)')
-                .eq('curriculum_id', curriculumId);
-
-            setState(() {
-              _courses =
-                  (subjectsResponse as List<dynamic>)
-                      .map(
-                        (subject) => {
-                          'title': subject['courses']['title'] as String?,
-                          'icon_name':
-                              subject['courses']['icon_name'] as String?,
-                        },
-                      )
-                      .where(
-                        (course) =>
-                            course['title'] != null &&
-                            course['icon_name'] != null,
-                      )
-                      .toList();
-            });
-          }
-        }
-      } catch (e) {
-        _logger.warning('Error fetching student courses', e);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to load courses.')),
-          );
-        }
-      }
-    } else if (user != null && _userRole == 'faculty') {
+    if (user != null && _userRole == 'faculty') {
       try {
         final subjectsResponse = await supabase
             .from('subjects')
-            .select('courses(title, icon_name)')
+            .select('courses(title, icon_name), id') // Include subject ID
             .eq('faculty_id', user.id);
 
         setState(() {
@@ -162,6 +108,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                     (subject) => {
                       'title': subject['courses']['title'] as String?,
                       'icon_name': subject['courses']['icon_name'] as String?,
+                      'subject_id': subject['id'] as int?, // Store subject ID
                     },
                   )
                   .where(
@@ -172,11 +119,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
         });
       } catch (e) {
         _logger.warning('Error fetching faculty courses', e);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to load your courses.')),
-          );
-        }
+        // ... (error handling) ...
       }
     } else {
       setState(() {
@@ -250,9 +193,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
   Future<void> _addCourseDialog(BuildContext context) async {
     final titleController = TextEditingController();
     String? selectedIconName;
-    int? selectedSubjectId;
-
-    final subjects = await _fetchSubjectsFromSupabase();
 
     // Define your icon options
     final iconOptions = {
@@ -277,7 +217,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Add New Course'),
+              title: const Text('Add New Course and Subject'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -285,20 +225,20 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                     TextField(
                       controller: titleController,
                       decoration: const InputDecoration(
-                        labelText: 'Course Title',
+                        labelText: 'Course/Subject Title',
                       ),
                     ),
                     DropdownButtonFormField<String>(
                       value: selectedIconName,
                       items:
-                          iconOptions.keys.map((String iconName) {
+                          iconOptions.keys.map((String key) {
                             return DropdownMenuItem<String>(
-                              value: iconName,
+                              value: key,
                               child: Row(
                                 children: [
-                                  Icon(iconOptions[iconName]),
+                                  Icon(iconOptions[key]),
                                   const SizedBox(width: 8),
-                                  Text(iconName),
+                                  Text(key),
                                 ],
                               ),
                             );
@@ -310,22 +250,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                       },
                       decoration: const InputDecoration(labelText: 'Icon'),
                     ),
-                    DropdownButtonFormField<int>(
-                      value: selectedSubjectId,
-                      items:
-                          subjects.map((subject) {
-                            return DropdownMenuItem<int>(
-                              value: subject['id'] as int,
-                              child: Text(subject['name'] as String),
-                            );
-                          }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedSubjectId = value;
-                        });
-                      },
-                      decoration: const InputDecoration(labelText: 'Subject'),
-                    ),
                   ],
                 ),
               ),
@@ -336,17 +260,17 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                 ),
                 TextButton(
                   onPressed: () async {
-                    if (selectedSubjectId != null && selectedIconName != null) {
-                      await _addCourse(
+                    if (titleController.text.isNotEmpty &&
+                        selectedIconName != null) {
+                      await _addCourseAndSubject(
                         titleController.text,
                         selectedIconName!,
-                        selectedSubjectId!,
                       );
                       Navigator.of(dialogContext).pop();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Please select an icon and subject.'),
+                          content: Text('Please fill in all fields.'),
                         ),
                       );
                     }
@@ -359,6 +283,56 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
         );
       },
     );
+  }
+
+  Future<void> _addCourseAndSubject(String title, String iconName) async {
+    try {
+      final user = supabase.auth.currentUser;
+
+      if (user != null) {
+        // Insert new course
+        final courseResponse =
+            await supabase
+                .from('courses')
+                .insert({'title': title, 'icon_name': iconName})
+                .select('id')
+                .single();
+
+        final courseId = courseResponse['id'] as int;
+
+        // Insert new subject
+        await supabase.from('subjects').insert({
+          'name': title, // Use the same title for the subject
+          'faculty_id': user.id,
+          'course_id': courseId,
+        });
+
+        _loadCourses(); // Reload courses to reflect changes
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Course and subject added successfully'),
+            ),
+          );
+        }
+      } else {
+        _logger.warning('User is null when adding course.');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to add course. User not logged in.'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _logger.severe('Error adding course and subject', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add course and subject')),
+        );
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchSubjectsFromSupabase() async {
@@ -436,40 +410,42 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
     }
   }
 
- void _onCoursePressed(BuildContext context, String courseTitle) async {
-  _logger.info('Course pressed: $courseTitle');
-  final user = supabase.auth.currentUser;
+  void _onCoursePressed(BuildContext context, String courseTitle) async {
+    _logger.info('Course pressed: $courseTitle');
+    final user = supabase.auth.currentUser;
 
-  if (user != null) {
-    try {
-      final userData = await supabase
-          .from('users')
-          .select('curriculumId')
-          .eq('id', user.id)
-          .single();
-      final curriculumId = userData['curriculumId'] as int?;
+    if (user != null) {
+      try {
+        final userData =
+            await supabase
+                .from('users')
+                .select('curriculumId')
+                .eq('id', user.id)
+                .single();
+        final curriculumId = userData['curriculumId'] as int?;
 
-      if (curriculumId != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CourseDetailPage(
-              courseTitle: courseTitle,
-              curriculumId: curriculumId,
+        if (curriculumId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => CourseDetailPage(
+                    courseTitle: courseTitle,
+                    curriculumId: curriculumId,
+                  ),
             ),
-          ),
-        );
-      } else {
-        _showCurriculumNotFoundSnackbar();
+          );
+        } else {
+          _showCurriculumNotFoundSnackbar();
+        }
+      } catch (e) {
+        _logger.warning('Error fetching curriculum ID', e);
+        _showErrorSnackbar('Failed to load course details.');
       }
-    } catch (e) {
-      _logger.warning('Error fetching curriculum ID', e);
-      _showErrorSnackbar('Failed to load course details.');
+    } else {
+      _showErrorSnackbar("User not logged in");
     }
-  } else {
-    _showErrorSnackbar("User not logged in");
   }
-}
 
   void _showCurriculumNotFoundSnackbar() {
     if (mounted) {
@@ -563,7 +539,9 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
                         shadows: [
                           Shadow(
                             blurRadius: 2.0,
-                            color: _colorAnimation.value!.withValues(alpha:0.4),
+                            color: _colorAnimation.value!.withValues(
+                              alpha: 0.4,
+                            ),
                             offset: const Offset(1.0, 1.0),
                           ),
                         ],
@@ -610,15 +588,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage>
           ),
         ),
       ),
-      floatingActionButton:
-          _userRole == 'faculty'
-              ? FloatingActionButton.extended(
-                heroTag: null,
-                onPressed: () => _addCourseDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Course'),
-              )
-              : null,
     );
   }
 }

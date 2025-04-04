@@ -25,11 +25,9 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
   final _searchController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  // Filter and sort variables
   String? _selectedDept;
   int? _selectedSemester;
   String _sortOption = 'Newest';
-  bool _isUploadExpanded = false;
 
   @override
   void initState() {
@@ -52,7 +50,6 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
       setState(() => _isLoading = false);
     }
   }
-
 
   Future<void> _uploadFile() async {
     try {
@@ -167,26 +164,22 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
 
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
-      filtered =
-          filtered.where((paper) {
-            final name = paper['filename'].toString().toLowerCase();
-            final tags = paper['tags'].join(' ').toLowerCase();
-            return name.contains(query) || tags.contains(query);
-          }).toList();
+      filtered = filtered.where((paper) {
+        final name = paper['filename'].toString().toLowerCase();
+        final tags = paper['tags'].join(' ').toLowerCase();
+        return name.contains(query) || tags.contains(query);
+      }).toList();
     }
 
     if (_selectedDept != null && _selectedDept!.isNotEmpty) {
-      filtered =
-          filtered
-              .where((paper) => paper['department'] == _selectedDept)
-              .toList();
+      filtered = filtered
+          .where((paper) => paper['department'] == _selectedDept)
+          .toList();
     }
 
     if (_selectedSemester != null) {
       filtered =
-          filtered
-              .where((paper) => paper['semester'] == _selectedSemester)
-              .toList();
+          filtered.where((paper) => paper['semester'] == _selectedSemester).toList();
     }
 
     if (_sortOption == 'Newest') {
@@ -237,15 +230,13 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) => PDFView(
-                    filePath: tempFilePath,
-                    enableSwipe: true,
-                    onError: (error) => _showError('Error loading PDF: $error'),
-                    onPageError:
-                        (page, error) =>
-                            _showError('Error on page $page: $error'),
-                  ),
+              builder: (context) => PDFView(
+                filePath: tempFilePath,
+                enableSwipe: true,
+                onError: (error) => _showError('Error loading PDF: $error'),
+                onPageError:
+                    (page, error) => _showError('Error on page $page: $error'),
+              ),
             ),
           );
         } else {
@@ -272,10 +263,75 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
     _semesterController.clear();
   }
 
-  void _toggleUploadSection() {
-    setState(() {
-      _isUploadExpanded = !_isUploadExpanded;
-    });
+  void _showUploadDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Upload Paper'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: _tagsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tags (comma-separated)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.tag),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _deptController,
+                  decoration: const InputDecoration(
+                    labelText: 'Department',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.school),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _semesterController,
+                  decoration: const InputDecoration(
+                    labelText: 'Semester',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.cloud_upload, color: Colors.white),
+                  label: const Text(
+                    'Upload File',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: _isLoading ? null : _uploadFile,
+                  style: ElevatedButton.styleFrom(
+                    // Use Theme.of(context).colorScheme.secondary for accent color
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -285,7 +341,7 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
         title: const Text('Previous Year Papers'),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _toggleUploadSection,
+        onPressed: () => _showUploadDialog(context),
         tooltip: 'Upload Paper',
         child: const Icon(Icons.upload_file),
       ),
@@ -328,61 +384,6 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
               ],
             ),
           ),
-          if (_isUploadExpanded)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _tagsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tags (comma-separated)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.tag),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _deptController,
-                    decoration: const InputDecoration(
-                      labelText: 'Department',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.school),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _semesterController,
-                    decoration: const InputDecoration(
-                      labelText: 'Semester',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.cloud_upload, color: Colors.white),
-                    label: const Text(
-                      'Upload File',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onPressed: _isLoading ? null : _uploadFile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ],
-              ),
-            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -507,28 +508,27 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
     String inputValue = '';
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Enter $label'),
-            content: TextField(
-              keyboardType: keyboardType,
-              onChanged: (value) => inputValue = value,
-              decoration: InputDecoration(labelText: label),
-            ),
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.pop(context),
-              ),
-              TextButton(
-                child: const Text('Submit'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  onSubmit(inputValue);
-                },
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text('Enter $label'),
+        content: TextField(
+          keyboardType: keyboardType,
+          onChanged: (value) => inputValue = value,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
           ),
+          TextButton(
+            child: const Text('Submit'),
+            onPressed: () {
+              Navigator.pop(context);
+              onSubmit(inputValue);
+            },
+          ),
+        ],
+      ),
     );
   }
 

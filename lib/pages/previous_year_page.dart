@@ -73,6 +73,7 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
         _isLoading = true;
         _errorMessage = null;
       });
+
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
@@ -92,7 +93,7 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
 
       if (kIsWeb) {
         if (file.bytes == null) {
-          _showError('File bytes not available on web');
+          _showError('File bytes not available on web.');
           if (mounted) {
             setState(() => _isLoading = false);
           }
@@ -107,7 +108,7 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
             );
       } else {
         if (file.path == null) {
-          _showError('File path not available');
+          _showError('File path not available.');
           if (mounted) {
             setState(() => _isLoading = false);
           }
@@ -182,22 +183,26 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
 
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
-      filtered = filtered.where((paper) {
-        final name = paper['filename'].toString().toLowerCase();
-        final tags = paper['tags'].join(' ').toLowerCase();
-        return name.contains(query) || tags.contains(query);
-      }).toList();
+      filtered =
+          filtered.where((paper) {
+            final name = paper['filename'].toString().toLowerCase();
+            final tags = paper['tags'].join(' ').toLowerCase();
+            return name.contains(query) || tags.contains(query);
+          }).toList();
     }
 
     if (_selectedDept != null && _selectedDept!.isNotEmpty) {
-      filtered = filtered
-          .where((paper) => paper['department'] == _selectedDept)
-          .toList();
+      filtered =
+          filtered
+              .where((paper) => paper['department'] == _selectedDept)
+              .toList();
     }
 
     if (_selectedSemester != null) {
       filtered =
-          filtered.where((paper) => paper['semester'] == _selectedSemester).toList();
+          filtered
+              .where((paper) => paper['semester'] == _selectedSemester)
+              .toList();
     }
 
     if (_sortOption == 'Newest') {
@@ -252,13 +257,15 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PDFView(
-                filePath: tempFilePath,
-                enableSwipe: true,
-                onError: (error) => _showError('Error loading PDF: $error'),
-                onPageError:
-                    (page, error) => _showError('Error on page $page: $error'),
-              ),
+              builder:
+                  (context) => PDFView(
+                    filePath: tempFilePath,
+                    enableSwipe: true,
+                    onError: (error) => _showError('Error loading PDF: $error'),
+                    onPageError:
+                        (page, error) =>
+                            _showError('Error on page $page: $error'),
+                  ),
             ),
           );
         } else {
@@ -362,9 +369,7 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Previous Year Papers'),
-      ),
+      appBar: AppBar(title: const Text('Previous Year Papers')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showUploadDialog(context),
         tooltip: 'Upload Paper',
@@ -410,37 +415,39 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredPapers.isEmpty
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredPapers.isEmpty
                     ? const Center(child: Text('No papers available yet'))
                     : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _filteredPapers.length,
-                        itemBuilder: (context, index) {
-                          final paper = _filteredPapers[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                              vertical: 4.0,
-                              horizontal: 8.0,
+                      shrinkWrap: true,
+                      itemCount: _filteredPapers.length,
+                      itemBuilder: (context, index) {
+                        final paper = _filteredPapers[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 4.0,
+                            horizontal: 8.0,
+                          ),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.red,
                             ),
-                            child: ListTile(
-                              leading: const Icon(
-                                Icons.picture_as_pdf,
-                                color: Colors.red,
-                              ),
-                              title: Text(paper['filename']),
-                              subtitle: Text(
-                                  'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}'),
-                              onTap: () => _viewPdf(paper['file_path']),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () => _deletePaper(paper['filename']),
-                              ),
+                            title: Text(paper['filename']),
+                            subtitle: Text(
+                              'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}',
                             ),
-                          );
-                        },
-                      ),
+                            onTap: () => _viewPdf(paper['file_path']),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deletePaper(paper['filename']),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),
@@ -533,34 +540,35 @@ class PreviousYearPapersState extends State<PreviousYearPapers> {
   }
 
   void _showTextInputDialog(
-      String label,
-      Function(String) onSubmit, {
-        TextInputType keyboardType = TextInputType.text,
-      }) {
+    String label,
+    Function(String) onSubmit, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     String inputValue = '';
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Enter $label'),
-        content: TextField(
-          keyboardType: keyboardType,
-          onChanged: (value) => inputValue = value,
-          decoration: InputDecoration(labelText: label),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Enter $label'),
+            content: TextField(
+              keyboardType: keyboardType,
+              onChanged: (value) => inputValue = value,
+              decoration: InputDecoration(labelText: label),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              TextButton(
+                child: const Text('Submit'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  onSubmit(inputValue);
+                },
+              ),
+            ],
           ),
-          TextButton(
-            child: const Text('Submit'),
-            onPressed: () {
-              Navigator.pop(context);
-              onSubmit(inputValue);
-            },
-          ),
-        ],
-      ),
     );
   }
 

@@ -25,7 +25,6 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
   final _searchController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-
   // Filter and sort variables
   String? _selectedDept;
   int? _selectedSemester;
@@ -38,6 +37,22 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
     _fetchPapers();
     _searchController.addListener(_applyFiltersAndSort);
   }
+
+  Future<void> _deletePaper(String filename) async {
+    try {
+      setState(() => _isLoading = true);
+      await supabase.from('papers').delete().eq('filename', filename);
+      await _fetchPapers();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paper deleted successfully')),
+      );
+    } catch (e) {
+      _showError('Failed to delete paper: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
 
   Future<void> _uploadFile() async {
     try {
@@ -393,6 +408,10 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
                                 'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}',
                               ),
                               onTap: () => _viewPdf(paper['file_path']),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deletePaper(paper['filename']),
+                              ),
                             ),
                           );
                         },

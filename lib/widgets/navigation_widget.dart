@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:resourcehub/pages/home_page.dart';
+import 'package:resourcehub/pages/previous_year_page.dart';
 
 class NavigationWidget extends StatefulWidget {
   const NavigationWidget({super.key});
@@ -15,7 +16,7 @@ class _NavigationWidgetState extends State<NavigationWidget> with SingleTickerPr
 
   final List<Widget> _widgetOptions = <Widget>[
     const UnifiedHomepage(),
-    const Placeholder(child: Text('Previous Year Papers Page')),
+    const PreviousYearPapers(),
   ];
 
   @override

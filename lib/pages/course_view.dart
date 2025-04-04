@@ -16,7 +16,8 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
   List<Map<String, dynamic>> _files = [];
   bool _isLoading = false;
   String? _errorMessage;
-  
+  String? _userRole;
+
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -26,6 +27,26 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
     super.initState();
     _initializeAnimations();
     _loadFilesForCourse();
+    _getUserRole();
+  }
+
+  Future<void> _getUserRole() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        final response = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        setState(() {
+          _userRole = response['role'] as String?;
+        });
+      } catch (e) {
+        print('Error fetching user role: $e');
+      }
+    }
   }
 
   void _initializeAnimations() {
@@ -33,19 +54,19 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeIn,
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOut,
       ),
     );
-    
+
     _controller.forward();
   }
 
@@ -102,7 +123,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
       setState(() {
         _files = List<Map<String, dynamic>>.from(filesResponse);
       });
-        } catch (e) {
+    } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load files: ${e.toString()}';
       });
@@ -111,6 +132,149 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _showUploadFileDialog() async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final linkController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Upload File Link'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'File Name'),
+                ),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                TextField(
+                  controller: linkController,
+                  decoration: const InputDecoration(labelText: 'Link'),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Upload'),
+              onPressed: () {
+                _uploadFile(
+                  nameController.text,
+                  descriptionController.text,
+                  linkController.text,
+                );
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _uploadFile(String name, String description, String link) async {
+    try {
+      final courseResponse = await supabase
+          .from('courses')
+          .select('id')
+          .eq('title', widget.courseTitle)
+          .single();
+      final courseId = courseResponse['id'] as int;
+
+      final subjectsResponse = await supabase
+          .from('subjects')
+          .select('id')
+          .eq('course_id', courseId)
+          .eq('curriculum_id', widget.curriculumId);
+
+      if (subjectsResponse.isEmpty) {
+        setState(() {
+          _errorMessage = 'No subjects found for this course in the current curriculum.';
+        });
+        return;
+      }
+
+      final subjectId = subjectsResponse.first['id'] as int;
+
+      await supabase.from('files').insert([
+        {
+          'name': name,
+          'description': description,
+          'link': link,
+          'subject_id': subjectId,
+          'curriculum_id': widget.curriculumId,
+        }
+      ]);
+
+      _loadFilesForCourse(); // Reload files after upload
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File uploaded successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload file: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _deleteFile(int fileId) async {
+    try {
+      await supabase.from('files').delete().eq('id', fileId);
+      _loadFilesForCourse(); // Reload files after deletion
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File deleted successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete file: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _showDeleteConfirmationDialog(Map<String, dynamic> file) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: Text('Are you sure you want to delete "${file['name']}"?'),
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey,
+              ),
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Dismiss the dialog
+              },
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+              onPressed: () {
+                _deleteFile(file['id'] as int);
+                Navigator.of(dialogContext).pop(); // Dismiss the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -126,6 +290,15 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
         ),
       ),
       body: _buildBodyContent(),
+      floatingActionButton: _userRole == 'faculty'
+          ? FloatingActionButton(
+              heroTag: "upload_file_fab",
+              onPressed: () {
+                _showUploadFileDialog();
+              },
+              child: const Icon(Icons.upload_file),
+            )
+          : null,
     );
   }
 
@@ -169,48 +342,55 @@ class _CourseDetailPageState extends State<CourseDetailPage> with SingleTickerPr
           ).animate(animation),
           child: FadeTransition(
             opacity: animation,
-            child: _buildFileCard(file),
+            child: _buildFileCardWithDelete(file), // Use the new card builder
           ),
         );
       },
     );
   }
 
-  Widget _buildFileCard(Map<String, dynamic> file) {
-    return Card(
-      margin: const EdgeInsets.all(8.0),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              file['name'] as String? ?? 'File Name Not Available',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+  Widget _buildFileCardWithDelete(Map<String, dynamic> file) {
+    return GestureDetector(
+      onLongPress: _userRole == 'faculty'
+          ? () {
+              _showDeleteConfirmationDialog(file);
+            }
+          : null,
+      child: Card(
+        margin: const EdgeInsets.all(8.0),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                file['name'] as String? ?? 'File Name Not Available',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Description: ${file['description'] as String? ?? 'No description'}',
-              style: TextStyle(
-                color: Colors.grey[700],
+              const SizedBox(height: 8),
+              Text(
+                'Description: ${file['description'] as String? ?? 'No description'}',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            if (file['link'] != null)
-              _buildLinkButton(file['link'] as String)
-            else
-              const Text(
-                'Link not available.',
-                style: TextStyle(color: Colors.grey),
-              ),
-          ],
+              const SizedBox(height: 12),
+              if (file['link'] != null)
+                _buildLinkButton(file['link'] as String)
+              else
+                const Text(
+                  'Link not available.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+            ],
+          ),
         ),
       ),
     );

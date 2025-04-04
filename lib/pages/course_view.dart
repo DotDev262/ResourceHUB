@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 final supabase = Supabase.instance.client;
 final Logger _log = Logger('CourseDetailPage');
@@ -540,11 +541,14 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         gradient: LinearGradient(
-          colors: [Colors.blue.shade400, Colors.blue.shade600],
+          colors: [
+            Theme.of(context).colorScheme.primary.withValues(alpha:0.7), // Dynamic primary color
+            Theme.of(context).colorScheme.primary, // Dynamic primary color
+          ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha:0.3),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),

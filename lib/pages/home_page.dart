@@ -3,6 +3,7 @@ import 'package:resourcehub/widgets/course_buttons_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logging/logging.dart';
 import 'course_view.dart';
+import 'package:flutter/animation.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -13,18 +14,54 @@ class UnifiedHomepage extends StatefulWidget {
   State<UnifiedHomepage> createState() => _UnifiedHomepageState();
 }
 
-class _UnifiedHomepageState extends State<UnifiedHomepage> {
+class _UnifiedHomepageState extends State<UnifiedHomepage> with SingleTickerProviderStateMixin {
   bool _isGrid = true;
   final Logger _logger = Logger('UnifiedHomepage');
   String _greeting = "Hello!";
   String? _userName;
   String? _userRole;
   List<Map<String, dynamic>> _courses = [];
+  
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<Color?> _colorAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadUserDataAndCourses();
+    
+    // Initialize animations
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeIn,
+      ),
+    );
+    
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+    
+    _colorAnimation = ColorTween(
+      begin: Colors.blue.shade100,
+      end: Colors.blue.shade300,
+    ).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserDataAndCourses() async {
@@ -36,12 +73,11 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
     final user = supabase.auth.currentUser;
     if (user != null) {
       try {
-        final response =
-            await supabase
-                .from('users')
-                .select('name, role')
-                .eq('id', user.id)
-                .single();
+        final response = await supabase
+            .from('users')
+            .select('name, role')
+            .eq('id', user.id)
+            .single();
 
         setState(() {
           _userName = response['name'] as String?;
@@ -63,26 +99,21 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
     final user = supabase.auth.currentUser;
     if (user != null && _userRole == 'student') {
       try {
-        final userData =
-            await supabase
-                .from('users')
-                .select('department, admission_year')
-                .eq('id', user.id)
-                .single();
+        final userData = await supabase
+            .from('users')
+            .select('department, admission_year')
+            .eq('id', user.id)
+            .single();
         final department = userData['department'] as String?;
         final admissionYear = userData['admission_year'] as String?;
 
         if (department != null && admissionYear != null) {
-          final curriculumResponse =
-              await supabase
-                  .from('curricula')
-                  .select('id')
-                  .eq(
-                    'name',
-                    'B.Tech $department',
-                  ) // Assuming curriculum name format
-                  .eq('academic_year', int.tryParse(admissionYear) ?? 0)
-                  .single();
+          final curriculumResponse = await supabase
+              .from('curricula')
+              .select('id')
+              .eq('name', 'B.Tech $department')
+              .eq('academic_year', int.tryParse(admissionYear) ?? 0)
+              .single();
 
           final curriculumId = curriculumResponse['id'] as int?;
           if (curriculumId != null) {
@@ -91,27 +122,17 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
                 .select('courses(title, icon_name)')
                 .eq('curriculum_id', curriculumId);
 
-            if (subjectsResponse != null) {
-              setState(() {
-                _courses =
-                    (subjectsResponse as List<dynamic>)
-                        .map(
-                          (subject) => {
-                            'title': subject['courses']['title'] as String?,
-                            'icon_name':
-                                subject['courses']['icon_name'] as String?,
-                          },
-                        )
-                        .where(
-                          (course) =>
-                              course['title'] != null &&
-                              course['icon_name'] != null,
-                        )
-                        .toList();
-              });
-            }
-          }
-                }
+            setState(() {
+              _courses = (subjectsResponse as List<dynamic>)
+                  .map((subject) => {
+                        'title': subject['courses']['title'] as String?,
+                        'icon_name': subject['courses']['icon_name'] as String?,
+                      })
+                  .where((course) => course['title'] != null && course['icon_name'] != null)
+                  .toList();
+            });
+                    }
+        }
       } catch (e) {
         _logger.warning('Error fetching student courses', e);
         if (mounted) {
@@ -121,7 +142,6 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
         }
       }
     } else if (user != null && _userRole == 'Faculty') {
-      // Placeholder for faculty subjects
       setState(() {
         _courses = [
           {'title': 'Assigned Subject 1', 'icon_name': 'subject'},
@@ -190,9 +210,8 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
       } catch (e) {
         _logger.severe('Error during logout', e);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Error signing out')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Error signing out')));
         }
       }
     }
@@ -213,7 +232,10 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CourseDetailPage(courseTitle: courseTitle, curriculumId: curriculumId),
+              builder: (context) => CourseDetailPage(
+                courseTitle: courseTitle,
+                curriculumId: curriculumId,
+              ),
             ),
           );
         } else {
@@ -224,7 +246,7 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
         _showErrorSnackbar('Failed to load course details.');
       }
     } else {
-      _showCurriculumNotApplicableSnackbar(); // Or handle differently for non-students
+      _showCurriculumNotApplicableSnackbar();
     }
   }
 
@@ -247,7 +269,9 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   void _showCurriculumNotApplicableSnackbar() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Curriculum information not applicable for your role.')),
+        const SnackBar(
+          content: Text('Curriculum information not applicable for your role.'),
+        ),
       );
     }
   }
@@ -286,9 +310,9 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
       case 'desktop_windows':
         return Icons.desktop_windows;
       case 'subject':
-        return Icons.subject; // Default icon for faculty subjects
+        return Icons.subject;
       default:
-        return Icons.book; // Default icon if not found
+        return Icons.book;
     }
   }
 
@@ -296,7 +320,20 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Homepage'),
+        title: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: const Text(
+                'Homepage',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -312,16 +349,35 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _greeting,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: AnimatedBuilder(
+                  animation: _colorAnimation,
+                  builder: (context, child) {
+                    return Text(
+                      _greeting,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: _colorAnimation.value,
+                        shadows: [
+                          Shadow(
+                            blurRadius: 2.0,
+                            color: _colorAnimation.value!.withOpacity(0.4),
+                            offset: const Offset(1.0, 1.0),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
               if (_userRole == 'Faculty')
-                FacultyUploadButton(onPressed: _onUploadButtonPressed),
+                FacultyUploadButton(
+                  onPressed: _onUploadButtonPressed,
+                  animation: _scaleAnimation,
+                ),
               const SizedBox(height: 16),
               CoursesHeader(
                 isGrid: _isGrid,
@@ -329,24 +385,27 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
               ),
               const SizedBox(height: 16),
               if (_courses.isNotEmpty)
-                CourseButtonsView(
-                  courseTitles:
-                      _courses
-                          .map((course) => course['title'] as String)
-                          .toList(),
-                  courseIcons:
-                      _courses
-                          .map(
-                            (course) =>
-                                _getIconData(course['icon_name'] as String?),
-                          )
-                          .toList(),
-                  onCoursePressed:
-                      (courseTitle) => _onCoursePressed(context, courseTitle),
-                  isGrid: _isGrid,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  child: CourseButtonsView(
+                    key: ValueKey<bool>(_isGrid),
+                    courseTitles: _courses
+                        .map((course) => course['title'] as String)
+                        .toList(),
+                    courseIcons: _courses
+                        .map((course) => _getIconData(course['icon_name'] as String?))
+                        .toList(),
+                    onCoursePressed: (courseTitle) => _onCoursePressed(context, courseTitle),
+                    isGrid: _isGrid,
+                  ),
                 )
               else
-                const Text('No courses available.'),
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32.0),
+                    child: Text('No courses available.'),
+                  ),
+                ),
             ],
           ),
         ),
@@ -357,18 +416,39 @@ class _UnifiedHomepageState extends State<UnifiedHomepage> {
 
 class FacultyUploadButton extends StatelessWidget {
   final VoidCallback onPressed;
+  final Animation<double> animation;
 
-  const FacultyUploadButton({super.key, required this.onPressed});
+  const FacultyUploadButton({
+    super.key,
+    required this.onPressed,
+    required this.animation,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.upload_file),
-        label: const Text('Upload Links'),
-      ),
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: animation.value,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload Links'),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -392,9 +472,16 @@ class CoursesHeader extends StatelessWidget {
           'Courses:',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        IconButton(
-          icon: Icon(isGrid ? Icons.list : Icons.grid_view),
-          onPressed: onToggleGrid,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return ScaleTransition(scale: animation, child: child);
+          },
+          child: IconButton(
+            key: ValueKey<bool>(isGrid),
+            icon: Icon(isGrid ? Icons.list : Icons.grid_view),
+            onPressed: onToggleGrid,
+          ),
         ),
       ],
     );

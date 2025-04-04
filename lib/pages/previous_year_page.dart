@@ -268,29 +268,49 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Previous Year Papers'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sort, color: Colors.white),
-            onPressed: () => _showSortMenu(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: () => _showFilterMenu(context),
-          ),
-        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toggleUploadSection,
+        tooltip: 'Upload Paper',
+        child: const Icon(Icons.upload_file),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.upload_file, color: Colors.white),
-              label: Text(_isUploadExpanded ? 'Close Upload' : 'Upload Paper'),
-              onPressed: _toggleUploadSection,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    labelText: 'Search by name or tags',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.filter_list, size: 20),
+                      label: const Text('Filter'),
+                      onPressed: () => _showFilterMenu(context),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.sort, size: 20),
+                      label: const Text('Sort'),
+                      onPressed: () => _showSortMenu(context),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           if (_isUploadExpanded)
@@ -348,46 +368,35 @@ class _PreviousYearPapersState extends State<PreviousYearPapers> {
                 ],
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search by name or tags',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
-          ),
           Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredPapers.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredPapers.isEmpty
                     ? const Center(child: Text('No papers available yet'))
                     : ListView.builder(
-                      itemCount: _filteredPapers.length,
-                      itemBuilder: (context, index) {
-                        final paper = _filteredPapers[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            vertical: 4.0,
-                            horizontal: 8.0,
-                          ),
-                          child: ListTile(
-                            leading: const Icon(
-                              Icons.picture_as_pdf,
-                              color: Colors.red,
+                        shrinkWrap: true,
+                        itemCount: _filteredPapers.length,
+                        itemBuilder: (context, index) {
+                          final paper = _filteredPapers[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4.0,
+                              horizontal: 8.0,
                             ),
-                            title: Text(paper['filename']),
-                            subtitle: Text(
-                              'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}',
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.red,
+                              ),
+                              title: Text(paper['filename']),
+                              subtitle: Text(
+                                'Tags: ${paper['tags'].join(', ')} | Dept: ${paper['department']} | Sem: ${paper['semester']}',
+                              ),
+                              onTap: () => _viewPdf(paper['file_path']),
                             ),
-                            onTap: () => _viewPdf(paper['file_path']),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
